@@ -31,7 +31,7 @@ async def check_service():
     :return:
     """
     logging.info("Checking if service is up and running")
-    return {"status": 200, "message": "Service is up and running"}
+    return {"status": 200, "message": "New Service is up and running"}
 
 
 @app.post("/question_answering")
