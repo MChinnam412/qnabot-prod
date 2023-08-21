@@ -8,7 +8,7 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.config import Config
 
-#from __init__ import DEFAULT_OUTPUT
+from __init__ import DEFAULT_OUTPUT
 from src.generic_qna import GenericQnaAnswering
 from src.source_data import InputRequest
 from src.utils.logger_utils import Logger
@@ -21,8 +21,8 @@ generic_qna = GenericQnaAnswering()
 
 app = FastAPI()
 
-DEFAULT_OUTPUT = {"status":"200","message":"success", "sessionId": None, "question": None,"answer": "Not Found",
-                  "prompts": [], "confidence":1.0, "source_url": "N/A", "source":None, "timestamp": None}
+# DEFAULT_OUTPUT = {"status":"200","message":"success", "sessionId": None, "question": None,"answer": "Not Found",
+#                   "prompts": [], "confidence":1.0, "source_url": "N/A", "source":None, "timestamp": None}
 
 @app.get("/")
 async def check_service():
@@ -63,6 +63,6 @@ async def question_answering(request: InputRequest):
         return output
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host=config.get("HOST", str, default="0.0.0.0"), port=config.get("PORT", int, default=8000),
-                workers=config.get("WORKERS", int, default=1))
+# if __name__ == "__main__":
+#     uvicorn.run(app, host=config.get("HOST", str, default="0.0.0.0"), port=config.get("PORT", int, default=8000),
+#                 workers=config.get("WORKERS", int, default=1))
