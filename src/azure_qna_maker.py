@@ -36,10 +36,16 @@ class QuestionAnswering:
 
 
     # It's the default value
-    deployment = config.get('AZURE_QNA_MAKER_DEPLOYMENT', str, None)
+    #deployment = config.get('AZURE_QNA_MAKER_DEPLOYMENT', str, None)
     deployment="production"
     
-        
+    if endpoint is None:
+        print("Endpoint none")
+    if knowledge_base_project is None:
+        print("knowledge_base_project None")
+    if credential is None:
+        print("credential none")
+    
     # It would be updated once we connect to Azure QnAmaker API
     client = None
 
