@@ -20,10 +20,10 @@ logging = log.get_logger()
 generic_qna = GenericQnaAnswering()
 
 app = FastAPI()
-# origins=["*"]
-# app.add_middleware(CORSMiddleware,allow_origins=origins,
-#                    allow_credentials=True,
-#                    allow_methods=["*"],allow_headers=["*"])
+origins=["*"]
+app.add_middleware(CORSMiddleware,allow_origins=origins,
+                   allow_credentials=True,
+                   allow_methods=["*"],allow_headers=["*"])
 
 # DEFAULT_OUTPUT = {"status":"200","message":"success", "sessionId": None, "question": None,"answer": "Not Found",
 #                   "prompts": [], "confidence":1.0, "source_url": "N/A", "source":None, "timestamp": None}
