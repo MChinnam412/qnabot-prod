@@ -20,7 +20,7 @@ logging = log.get_logger()
 generic_qna = GenericQnaAnswering()
 
 app = FastAPI()
-
+origins = [f"http://{config.get('HOST', str, default='0.0.0.0')}:{config.get('PORT', int, default=8000)}", f"http://{config.get('HOST', str, default='0.0.0.0')}"]
 app.add_middleware(CORSMiddleware,allow_origins=origins,
                    allow_credentials=True,
                    allow_methods=["*"],allow_headers=["*"])
