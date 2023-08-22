@@ -7,7 +7,7 @@ import os
 import uvicorn
 from fastapi import FastAPI
 from starlette.config import Config
-
+from fastapi.middleware.cors import CORSMiddleware
 from __init__ import DEFAULT_OUTPUT
 from src.generic_qna import GenericQnaAnswering
 from src.source_data import InputRequest
@@ -20,6 +20,10 @@ logging = log.get_logger()
 generic_qna = GenericQnaAnswering()
 
 app = FastAPI()
+
+app.add_middleware(CORSMiddleware,allow_origins=origins,
+                   allow_credentials=True,
+                   allow_methods=["*"],allow_headers=["*"])
 
 # DEFAULT_OUTPUT = {"status":"200","message":"success", "sessionId": None, "question": None,"answer": "Not Found",
 #                   "prompts": [], "confidence":1.0, "source_url": "N/A", "source":None, "timestamp": None}
