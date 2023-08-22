@@ -1,4 +1,5 @@
 import copy
+import uvicorn
 
 from azure.ai.language.questionanswering import QuestionAnsweringClient
 from azure.core.credentials import AzureKeyCredential
@@ -36,19 +37,15 @@ class QuestionAnswering:
 
     # It's the default value
     deployment = config.get('AZURE_QNA_MAKER_DEPLOYMENT', str, None)
-
+    deployment="production"
+    
+        
     # It would be updated once we connect to Azure QnAmaker API
     client = None
 
     # we are setting default confidence please feel free to fine-tune
     confidence = None
     
-    import os
-    print(f"AZURE_QNA_MAKER_URL -env:{os.getenv('AZURE_QNA_MAKER_URL')}")
-    
-    print(f"AZURE_QNA_MAKER_CREDENTIALS -env:{os.getenv('AZURE_QNA_MAKER_CREDENTIALS')}")
-    
-    print(f"AZURE_QNA_MAKER_KNOWLEDGE_BASE -env:{os.getenv('AZURE_QNA_MAKER_KNOWLEDGE_BASE')}")
 
     def __init__(self, confidence=0.5):
         """
@@ -139,4 +136,5 @@ class QuestionAnswering:
         except Exception as ex:
             logging.error(f"Error getting accessing answer: {ex}")
         return final_answer
-
+    
+ 
