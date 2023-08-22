@@ -36,14 +36,6 @@ class MySQLConnection:
             self.cursor = self.mydb.cursor()
             logging.info("Successfully connected to MySQL")
         except Exception as ex:
-            if config.get("MYSQL_HOST") is None:
-                config.get("MYSQL_HOST")
-            if config.get("MYSQL_PORT") is None:
-                print("MYSQL_PORT none")
-            if config.get("MYSQL_DB") is None:
-                print("MYSQL_DB")
-            if config.get("MYSQL_PASSWORD") is None:
-                print("MYSQL_PASSWORD")
             logging.error(f"Error connecting to MySQL: {ex}")
 
     def get_conversation_data(self, unique_id):
