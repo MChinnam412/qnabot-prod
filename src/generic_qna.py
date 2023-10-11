@@ -1,152 +1,146 @@
-import pickle
-from datetime import datetime
+import copy
+import uvicorn
 
-from langchain.memory import ConversationBufferMemory
+from azure.ai.language.questionanswering import QuestionAnsweringClient
+from azure.core.credentials import AzureKeyCredential
 from starlette.config import Config
 
-from src.__init__ import DEFAULT_GENERIC_OUTPUT, URLS
-from src.azure_qna_maker import QuestionAnswering
-from src.openaI_code import OpenAIQuestionAnswering
+from src.__init__ import DEFAULT_OUTPUT_QnA_MAKER
 from src.utils.logger_utils import Logger
-from src.utils.mysql_utils import MySQLConnection
-
-config = Config("configs/properties.conf")
-
+import os
 logger = Logger()
 logging = logger.get_logger()
+config = Config("configs/properties.conf")
 
-
-class GenericQnaAnswering:
+class QuestionAnswering:
     """
-    combining both OpenAI and Azure QnA Maker
+    Question Answering using Azure QnA Maker API
     """
-    openai_instance = None
-    azure_qna_maker = None
-    sessionId_exists = False
-    mysql_instance = None
-    current_timestamp = None
-    mysql_timestamp = None
+    # You should load this from config file as it's just for testing we have directly update it
+    # It isn't a good practice when you scaling it as an API
 
-    def __init__(self, ):
+    # azure endpoint
+    #endpoint = config.get('AZURE_QNA_MAKER_URL', str, None)
+    AZURE_QNA_MAKER_URL=os.getenv('AZURE_QNA_MAKER_URL')
+    endpoint = AZURE_QNA_MAKER_URL
+
+    # azure credentials
+    #credential = AzureKeyCredential(config.get('AZURE_QNA_MAKER_CREDENTIALS', str, None))
+    AZURE_QNA_MAKER_CREDENTIALS=os.getenv('AZURE_QNA_MAKER_CREDENTIALS')
+    credential = AzureKeyCredential(AZURE_QNA_MAKER_CREDENTIALS)
+
+    # project name
+    #knowledge_base_project = config.get('AZURE_QNA_MAKER_KNOWLEDGE_BASE', str, None)
+    AZURE_QNA_MAKER_KNOWLEDGE_BASE=os.getenv('AZURE_QNA_MAKER_KNOWLEDGE_BASE')
+    knowledge_base_project = AZURE_QNA_MAKER_KNOWLEDGE_BASE
+
+
+    # It's the default value
+    #deployment = config.get('AZURE_QNA_MAKER_DEPLOYMENT', str, None)
+    deployment="production"
+    
+    if endpoint is None:
+        print("Endpoint none")
+    if knowledge_base_project is None:
+        print("knowledge_base_project None")
+    if credential is None:
+        print("credential none")
+    
+    # It would be updated once we connect to Azure QnAmaker API
+    client = None
+
+    # we are setting default confidence please feel free to fine-tune
+    confidence = None
+    
+
+    def __init__(self, confidence=0.5):
         """
-        loading OpenAI, Azure QnA Maker, MySQL connections
+        Azure client
+        :param confidence:
         """
         try:
-            # self.openai_instance = OpenAIQuestionAnswering(URLS[:1])
-            # self.openai_instance.load_chain()
-            self.azure_qna_maker = QuestionAnswering(config.get('AZURE_QNA_MAKER_CONFIDENCE', float, 0.5))
-            self.mysql_instance = MySQLConnection()
-            logging.info("Successfully initialized OpenAI")
+            self.client = QuestionAnsweringClient(self.endpoint, self.credential)
+            self.confidence = confidence
+            logging.info("Successully connected to azure qa client")
         except Exception as ex:
-            logging.error(f"Error while initializing OpenAI or Azure QnA Maker: {ex}")
+            logging.error(f"Error while connecting to Azure: {ex}")
 
-    def get_session_id_exists(self, sessionId):
+    def extract_output(self, output):
         """
-        check in sql if session exists and retrieve memory
-        :param sessionId:
+        Pre-processing extracted output from Azure QnAmaker API
+        :param output:
         :return:
         """
-        output = None
+        all_answers = []
+        default_json = {"answer": "N/A", "prompts": [], "confidence": 0.0, "source": "N/A", "source_url": "N/A"}
         try:
-            output = self.mysql_instance.get_conversation_data(sessionId)
-            return output
-        except Exception as ex:
-            logging.error(f"Error while checking if session exists: {ex}")
-        return None
+            # if you want only the one with max confidence when there are multiple answers
+            # max_confidence = self.confidence
+            for answer in output.answers:
+                if answer.confidence >= self.confidence:
+                    # creating a copy so they aren't using same variable
+                    temp_json = copy.deepcopy(default_json)
 
-    def get_current_timestamp(self):
-        """
-        generting timestamp for logging purposes
-        As well as for generating sessionId
-        :return:
-        """
-        try:
-            self.current_timestamp = datetime.now().strftime("%m/%d/%YT%H:%M:%S.%f")
-            self.mysql_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        except Exception as ex:
-            logging.error(f"Error while generating timestamp: {ex}")
+                    temp_json["answer"] = str(answer.answer).strip()
+                    temp_json["confidence"] = answer.confidence
+                    temp_json["source"] = answer.metadata.get("source", "N/A")
+                    temp_json["source_url"] = answer.metadata.get("source_url", "N/A")
+                    if temp_json["source_url"] != "N/A":
+                        temp_json["source_url"] = temp_json["source_url"].replace("_com", ".com").replace("@", "/")
+                    # Checking if you have any prompts
+                    prompt_output = answer.dialog.prompts
+                    if len(prompt_output) > 0:
+                        temp_answer = ""
+                        for prompt in prompt_output:
 
-    def convert_to_html(self, data):
-        """
-        converting output from QnA Maker to html
-        :param sessionId:
-        :return:
-        """
-        try:
-            data = data.strip()
-            split_data = data.split("\n")
-            output_data = []
-            is_list = False
-            for d in split_data:
-                d = d.strip()
-                if len(d) > 0:
-                    if "* " in d:
-                        # Checking for list
-                        d = d.replace("*", "")
-                        d = d.strip()
-                        d = "<li>" + d + "</li>"
-                        if not is_list:
-                            # start of list
-                            d = "<ul>" + d
-                            is_list = True
-                    elif is_list:
-                        # end of list
-                        output_data[-1] = output_data[-1] + "</ul>"
-                        is_list = False
-                    if len(d) > 0:
-                        if ":" in d and ("More Information" in d or "Link" in d):
-                            # checking for Source urls
-                            temp = d.split(":")
-                            o = f'<a href="{":".join(temp[1:]).strip()}">{temp[0].strip()}</a><br><br>'
-                            d = o
-                        if "<" not in d:
-                            d += "<br>"
-                        output_data.append(d)
-            output_data[-1] = output_data[-1].replace("<br>", "")
-            return "".join(output_data)
+                            # appending points wrt header wrt streamlit to make it better on UI
+                            temp_answer = str(prompt.display_text).strip()
+                            if len(temp_answer) > 0:
+                                ## If no prompt output don't append it to the final answer
+                                temp_json["prompts"].append(temp_answer)
+                    all_answers.append(temp_json)
+            logging.info("Successfully extracted output\n")
+            return all_answers
         except Exception as ex:
-            logging.error(f"Error while converting to html: {ex}")
-        return data
+            logging.error(f"Error while extracting output: {ex}")
+        return all_answers
 
-    def get_answer(self, sessionId, question):
+    def get_output(self, question):
         """
-        checking input question
+        Retrieving the output of a question
         :param question:
         :return:
         """
+        final_answer = copy.deepcopy(DEFAULT_OUTPUT_QnA_MAKER)
         try:
-            self.sessionId_exists = False
-            memory = ConversationBufferMemory()
-            self.get_current_timestamp()
-
-            # checking if session exists and querying db
-            # If session doesn't exists creating new sessionId
-            if sessionId is not None:
-                memory_cache = self.get_session_id_exists(sessionId)
-                if memory_cache is not None:
-                    self.sessionId_exists = True
-                    memory = memory_cache
-            else:
-                join_question = "".join(question.split())
-                sessionId = str(hash(self.current_timestamp + join_question))
-            output = self.azure_qna_maker.get_output(question)
-            # if output["answer"] == "No answer found":
-            # output = self.openai_instance.query_data(question)
-            output["sessionId"] = sessionId
-            output["timestamp"] = self.current_timestamp
-
-            # convert the output data to html
-            output["answer"] = self.convert_to_html(output["answer"])
-
-            memory.save_context({"input": question}, {"output": output["answer"]})
-            # converting the memory to pickle to save in mysql
-            bin_pickle = pickle.dumps(memory)
-            if self.sessionId_exists:
-                # If sessionId exists only updating the timestamp and ConversationBufferMemory
-                self.mysql_instance.update_record([self.mysql_timestamp, bin_pickle, sessionId])
-            else:
-                self.mysql_instance.insert_data([sessionId, self.mysql_timestamp, self.mysql_timestamp, bin_pickle])
-            return output
+            if self.client is None:
+                final_answer["answer"] = "Error while connecting to Azure bot"
+                return final_answer
+            if type(question) != str:
+                final_answer["answer"] = "Enter a valid intput"
+                return final_answer
+            question = question.strip()
+            if len(question) == 0:
+                final_answer["answer"] = "enter a valid input"
+                return final_answer
+            output = self.client.get_answers(
+                question=question,
+                project_name=self.knowledge_base_project,
+                deployment_name=self.deployment
+            )
+            logging.info("Successfully retrieved output from azure environment")
+            all_answers = self.extract_output(output)
+            max_conf = -1
+            if all_answers:
+                for answer in all_answers:
+                    if answer["confidence"] > max_conf:
+                        max_conf = answer["confidence"]
+                        final_answer = answer
+                    elif answer["confidence"] == max_conf and answer["source"] == "service":
+                        final_answer = answer
+            return final_answer
         except Exception as ex:
-            logging.error(f"Error while running output for QnA Maker & OpenAI: {ex}")
-        return DEFAULT_GENERIC_OUTPUT
+            logging.error(f"Error getting accessing answer: {ex}")
+        return final_answer
+    
+ 
