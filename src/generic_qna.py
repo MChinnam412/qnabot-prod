@@ -97,7 +97,7 @@ class GenericQnaAnswering:
                         if ":" in d and ("More Information" in d or "Link" in d):
                             # checking for Source urls
                             temp = d.split(":")
-                            o = f'<a href="{":".join(temp[1:]).strip()}" target="_blank">{temp[0].strip()}</a><br><br>'
+                            o = f'<a href="{":".join(temp[1:]).strip()}" target="_blank"><u>{temp[0].strip()}</u></a><br><br>'
                             d = o
                         if "<" not in d:
                             d += "<br>"
