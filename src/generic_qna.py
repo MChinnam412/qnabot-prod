@@ -132,6 +132,7 @@ class GenericQnaAnswering:
             output = self.azure_qna_maker.get_output(question)
             if output["answer"] == "No answer found":
                 output["prompts"] = ["About Company", "Services Portfolio", "Case Studies", "Connect me with Sales"]
+                output["answer"] = "Kindly make a selection from the provided options"
             # if output["answer"] == "No answer found":
             # output = self.openai_instance.query_data(question)
             output["sessionId"] = sessionId
