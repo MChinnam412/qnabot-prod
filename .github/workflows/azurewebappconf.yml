@@ -28,8 +28,8 @@ jobs:
 
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
       
-      - name: Set OpenAI API Key
-        run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+      # - name: Set OpenAI API Key
+      #   run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
       - name: Print Environment Variables  # Add this step to print environment variables
         run: env
@@ -37,7 +37,7 @@ jobs:
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v2
         with:
-          name: fissionlabs-AIchatbot
+          name: fissionlabs-prod-aichatbot
           path: |
             . 
             !venv/
